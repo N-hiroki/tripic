@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html class="lower">
+<head>
+    <title>Tripic</title>
+    <meta charset="UTF-8">
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="stylesheet" href="css/reset.css">
+    <link href="css/materialize.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="http://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <script src="http://maps.google.com/maps/api/js?v=3&sensor=true" type="text/javascript" charset="UTF-8"></script>
+    <script src="js/materialize.js"></script>
+
+</head>
+<body>
+<!--プリローダー-->
+<div id="preload-outer" class="text-center">
+    <div class="preloader-wrapper big active">
+      <div class="spinner-layer spinner-blue">
+        <div class="circle-clipper left">
+          <div class="circle align-center"></div>
+        </div><div class="gap-patch">
+          <div class="circle align-center"></div>
+        </div><div class="circle-clipper right align-center">
+          <div class="circle align-center"></div>
+        </div>
+      </div>
+    </div>
+</div>
+<div id="Maps"></div>
+<div class="collection-outer">
+ <ul class="collection">
+  </ul>
+</div>
+<script>
+    $(function(){
+        var $_outer =$("#preload-outer");
+            navigator.geolocation.getCurrentPosition(function(position){
+                console.log(position);
+                var map;
+                var lat = position.coords.latitude;
+                var lng = position.coords.longitude;
+                
+                var current = new google.maps.LatLng(lat,lng);
+                var option = {
+                    zoom:18,
+                    mapTypeId:google.maps.MapTypeId.ROADMAP,
+                    center:current
+                }
+                map = new google.maps.Map(document.getElementById("Maps"),option);
+                var marker = new google.maps.Marker({position:current,map:map});
+                
+                
+               var result = $.ajax({
+                    url: "php/instagram.php",//データをPHPファイルのURL/
+                   data:{lat:lat,lng:lng},
+                    type:"GET",//GETとPOSTがあるのですが、Instagram使うのであればPOSTの方が望ましい
+                    dataType: "json",//データの形式です。とりあえずJSONかJSONPで書いておけばOK
+		            async:true,         //非同期=true・同期=false
+		            cache:false,        //初期値はtrueでキャッシュする状態
+                    timeout:3000
+                });
+                    
+                 result.done(function(data,textStatus,jqXHR){
+                    var d =data.data;
+                    console.log(d.length);
+                    var photolist =[];
+                    for(var i=0;i<d.length;i++){
+                        console.log(d[i]);
+                        var item = d[i];
+                        console.log(item);
+                        if(data.meta.code = 200){
+                            var photolat = item.location.latitude;//経度
+                            var photolong = item.location.longitude;//緯度                     
+                            var photoCurrent = new google.maps.LatLng(photolat,photolong);//写真の位置情報
+                            var photo = item.images.thumbnail.url;//サムネイルのURL
+                            var linkTarget = item.link;
+                            var content ='<a href="'+item.link+'" target="_blank" current="'+photoCurrent+'"><img src="'+item.images.thumbnail.url+'"></a>';
+                            photolist.push({location:photoCurrent,url:photo,link:linkTarget});
+                            
+                            var photoMarker = new google.maps.Marker({//マーカー設定
+                                position:photoCurrent,
+                                map:map,
+                                icon:new google.maps.MarkerImage(//マーカーは上記で取得した画像
+                                    photo,
+                                    new google.maps.Size(80,80)//マーカー代わりの画像はここで設定
+                                ),
+                            });
+                            
+                            
+                            var list = '<li class="collection-item avatar"><a href="#" current="'+photoCurrent+'"><img src="'+photo+'" alt="" class="circle"><span class="title">'+item.location.name+'</span><p>First Line <br>Second Line</p></a></li> ';
+                            $(".collection").append(list);  
+                        }
+                        markerCheck(photoMarker, content);
+                        
+                    }//ループここでおしまい
+                    
+                    function markerCheck (photoMarker,content){
+                              google.maps.event.addListener(photoMarker,"click",function(event){
+                                    new google.maps.InfoWindow({
+                                        content:content
+                                    }).open(photoMarker.getMap(),photoMarker);
+                            }); 
+                    };
+                     
+                     
+                     $(".collection-item >a").on("click",function(){
+
+                        var position = $(this).attr("current");
+                        console.log(position);
+                        var point = new google.maps.LatLng(position);
+                        map.setCenter(point);
+                        return false;
+                     });
+                     
+                    setTimeout(function(){
+                        $_outer.fadeOut(1000);
+                    },3000);
+                    console.log("成功");       
+                });
+               result.fail(function(jqXHR,textStatus,erroeThrown){
+                    console.log("ここまで来たのに失敗！");
+                   alert("位置情報が取得できませんでした。恐れ入りますが見通しのよい場所で再度ページへのアクセスをお願い致します。")
+                });           
+            },function(error){
+                console.log(error);
+            });
+    });
+    
+</script>
+</body>
+</html>
